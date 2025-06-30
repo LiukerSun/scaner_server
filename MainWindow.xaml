@@ -1,0 +1,198 @@
+<Window x:Class="ScanerServer.MainWindow"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:local="clr-namespace:ScanerServer"
+    Title="扫描器服务器" Height="700" Width="1000"
+    WindowStartupLocation="CenterScreen"
+    Background="#F5F5F5">
+
+    <Window.Resources>
+        <!-- 复制按钮内容转换器 -->
+        <local:CopyButtonContentConverter x:Key="CopyButtonContentConverter"/>
+        <!-- 复制按钮背景转换器 -->
+        <local:CopyButtonBackgroundConverter x:Key="CopyButtonBackgroundConverter"/>
+        <!-- 复制按钮提示转换器 -->
+        <local:CopyButtonToolTipConverter x:Key="CopyButtonToolTipConverter"/>
+        
+        <Style x:Key="ModernButton" TargetType="Button">
+            <Setter Property="Background" Value="#2196F3" />
+            <Setter Property="Foreground" Value="White" />
+            <Setter Property="BorderThickness" Value="0" />
+            <Setter Property="Padding" Value="15,8" />
+            <Setter Property="FontWeight" Value="SemiBold" />
+            <Setter Property="Cursor" Value="Hand" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border Background="{TemplateBinding Background}"
+                            CornerRadius="4"
+                            Padding="{TemplateBinding Padding}">
+                            <ContentPresenter HorizontalAlignment="Center"
+                                VerticalAlignment="Center" />
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter Property="Background" Value="#1976D2" />
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <Style x:Key="StatusTextBlock" TargetType="TextBlock">
+            <Setter Property="FontSize" Value="14" />
+            <Setter Property="FontWeight" Value="SemiBold" />
+            <Setter Property="Margin" Value="5" />
+        </Style>
+    </Window.Resources>
+
+    <Grid Margin="20">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+            <RowDefinition Height="Auto" />
+        </Grid.RowDefinitions>
+
+        <!-- 标题区域 -->
+        <Border Grid.Row="0" Background="White" CornerRadius="8" Padding="20" Margin="0,0,0,20">
+            <StackPanel>
+                <TextBlock Text="🔑 Code 扫描器"
+                    FontSize="24"
+                    FontWeight="Bold"
+                    Foreground="#333333"
+                    HorizontalAlignment="Center" />
+                <TextBlock Text="实时接收和显示扫描码"
+                    FontSize="14"
+                    Foreground="#666666"
+                    HorizontalAlignment="Center"
+                    Margin="0,5,0,0" />
+            </StackPanel>
+        </Border>
+
+        <!-- 控制面板 -->
+        <Border Grid.Row="1" Background="White" CornerRadius="8" Padding="20" Margin="0,0,0,20">
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="Auto" />
+                    <ColumnDefinition Width="Auto" />
+                    <ColumnDefinition Width="Auto" />
+                </Grid.ColumnDefinitions>
+
+                <StackPanel Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center">
+                    <TextBlock Text="服务器状态: " Style="{StaticResource StatusTextBlock}" />
+                    <TextBlock x:Name="StatusText" Text="未启动"
+                        Foreground="#F44336"
+                        Style="{StaticResource StatusTextBlock}" />
+                </StackPanel>
+
+                <TextBlock Grid.Column="1" Text="端口: "
+                    Style="{StaticResource StatusTextBlock}"
+                    VerticalAlignment="Center" />
+                <TextBox Grid.Column="2" x:Name="PortTextBox"
+                    Text="5000" Width="80" Height="30"
+                    VerticalAlignment="Center" Margin="5,0" />
+
+                <Button Grid.Column="3" x:Name="StartStopButton"
+                    Content="启动服务器"
+                    Style="{StaticResource ModernButton}"
+                    Click="StartStopButton_Click" />
+            </Grid>
+        </Border>
+
+        <!-- 请求列表 -->
+        <Border Grid.Row="2" Background="White" CornerRadius="8" Padding="20">
+            <Grid>
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto" />
+                    <RowDefinition Height="*" />
+                </Grid.RowDefinitions>
+
+                <StackPanel Grid.Row="0" Orientation="Horizontal" Margin="0,0,0,15">
+                    <TextBlock Text="📋 扫描码记录"
+                        FontSize="18"
+                        FontWeight="Bold"
+                        Foreground="#333333" />
+                    <TextBlock x:Name="RequestCountText"
+                        Text=" (0)"
+                        FontSize="18"
+                        Foreground="#666666"
+                        Margin="5,0,0,0" />
+                </StackPanel>
+
+                <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto">
+                    <ItemsControl x:Name="RequestList">
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate>
+                                <Border Background="#F8F9FA"
+                                    CornerRadius="6"
+                                    Padding="15"
+                                    Margin="0,0,0,10"
+                                    BorderBrush="#E9ECEF"
+                                    BorderThickness="1">
+                                    <Grid>
+                                        <Grid.RowDefinitions>
+                                            <RowDefinition Height="Auto" />
+                                            <RowDefinition Height="Auto" />
+                                        </Grid.RowDefinitions>
+
+                                        <StackPanel Grid.Row="0" Orientation="Horizontal"
+                                            Margin="0,0,0,10">
+                                            <TextBlock Text="🔑 Code: "
+                                                FontWeight="Bold"
+                                                Foreground="#2196F3"
+                                                FontSize="16" />
+                                            <TextBlock Text="{Binding Body}"
+                                                FontWeight="Bold"
+                                                Foreground="#333333"
+                                                FontSize="16" />
+                                            <Button Content="{Binding IsCopied, Converter={StaticResource CopyButtonContentConverter}}" 
+                                                    x:Name="CopyButton"
+                                                    Width="30" 
+                                                    Height="25" 
+                                                    Margin="5,0,0,0"
+                                                    Background="{Binding IsCopied, Converter={StaticResource CopyButtonBackgroundConverter}}"
+                                                    Foreground="White"
+                                                    BorderThickness="0"
+                                                    FontSize="12"
+                                                    Click="CopyCode_Click"
+                                                    Tag="{Binding Body}"
+                                                    ToolTip="{Binding IsCopied, Converter={StaticResource CopyButtonToolTipConverter}}" />
+                                            <TextBlock Text=" | "
+                                                Foreground="#666666"
+                                                Margin="10,0" />
+                                            <TextBlock Text="{Binding Timestamp}"
+                                                Foreground="#666666"
+                                                FontSize="12"
+                                                VerticalAlignment="Center" />
+                                        </StackPanel>
+
+                                        <TextBlock Grid.Row="1" Text="来源IP: {Binding ClientIp}"
+                                            FontSize="12"
+                                            Foreground="#666666" />
+                                    </Grid>
+                                </Border>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                </ScrollViewer>
+            </Grid>
+        </Border>
+
+        <!-- 底部状态栏 -->
+        <Border Grid.Row="3" Background="#E3F2FD"
+            CornerRadius="8" Padding="15" Margin="0,20,0,0">
+            <StackPanel Orientation="Horizontal">
+                <TextBlock Text="💾 数据库: " Style="{StaticResource StatusTextBlock}" />
+                <TextBlock x:Name="DatabaseStatusText" Text="已连接"
+                    Foreground="#4CAF50" Style="{StaticResource StatusTextBlock}" />
+                <TextBlock Text=" | " Foreground="#666666" Style="{StaticResource StatusTextBlock}" />
+                <TextBlock Text="🌐 服务器地址: " Style="{StaticResource StatusTextBlock}" />
+                <TextBlock x:Name="ServerUrlText" Text="http://localhost:5000"
+                    Foreground="#2196F3" Style="{StaticResource StatusTextBlock}" />
+            </StackPanel>
+        </Border>
+    </Grid>
+</Window> 
