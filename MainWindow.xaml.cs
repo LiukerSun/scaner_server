@@ -80,6 +80,25 @@ namespace ScanerServer
         }
     }
 
+    // 复制面板背景转换器
+    public class CopyPanelBackgroundConverter : IValueConverter
+    {
+        public object Convert(object value, Type targetType, object parameter, CultureInfo culture)
+        {
+            return (bool)value ? System.Windows.Media.Brushes.LightGreen : System.Windows.Media.Brushes.Transparent;
+        }
+
+        public object ConvertBack(
+            object value,
+            Type targetType,
+            object parameter,
+            CultureInfo culture
+        )
+        {
+            throw new NotImplementedException();
+        }
+    }
+
     public partial class MainWindow : Window
     {
         // Windows API P/Invoke declarations
@@ -115,6 +134,8 @@ namespace ScanerServer
 
         private IHost? _webHost;
         private readonly ObservableCollection<ScanerServer.Models.HttpRequest> _requests;
+        private readonly ObservableCollection<ScanerServer.Models.HttpRequest> _normalRequests;
+        private readonly ObservableCollection<ScanerServer.Models.HttpRequest> _emergencyRequests;
         private bool _isServerRunning = false;
         private readonly Dictionary<int, bool> _copiedCodes = new Dictionary<int, bool>();
 
@@ -122,8 +143,10 @@ namespace ScanerServer
         {
             InitializeComponent();
             _requests = new ObservableCollection<ScanerServer.Models.HttpRequest>();
-            RequestList.ItemsSource = _requests;
-
+            _normalRequests = new ObservableCollection<ScanerServer.Models.HttpRequest>();
+            _emergencyRequests = new ObservableCollection<ScanerServer.Models.HttpRequest>();
+            NormalRequestList.ItemsSource = _normalRequests;
+            EmergencyRequestList.ItemsSource = _emergencyRequests;
             // 初始化数据库
             InitializeDatabase();
 
@@ -160,12 +183,18 @@ namespace ScanerServer
                 using var context = new ApplicationDbContext();
                 var recentRequests = context
                     .HttpRequests.OrderByDescending(r => r.Timestamp)
-                    .Take(50)
                     .ToList();
 
                 foreach (var request in recentRequests.AsEnumerable().Reverse())
                 {
-                    _requests.Add(request);
+                    if (request.Type == "emergency")
+                    {
+                        _emergencyRequests.Add(request);
+                    }
+                    else
+                    {
+                        _normalRequests.Add(request);
+                    }
                     // 根据数据库中的复制状态初始化内存中的状态
                     if (request.IsCopied)
                     {
@@ -264,7 +293,7 @@ namespace ScanerServer
                         webBuilder.UseUrls($"http://0.0.0.0:{port}");
                         webBuilder.Configure(app =>
                         {
-                            app.UseMiddleware<RequestLoggingMiddleware>(OnRequestReceived);
+                            app.UseMiddleware<RequestLoggingMiddleware>(new Action<ScanerServer.Models.HttpRequest>(OnRequestReceived));
 
                             app.Run(async context =>
                             {
@@ -342,29 +371,32 @@ namespace ScanerServer
             // 在UI线程中更新界面
             Dispatcher.Invoke(() =>
             {
-                _requests.Insert(0, request);
-
-                // 保持最多显示100条记录
-                while (_requests.Count > 100)
+                if (request.Type == "emergency")
                 {
-                    _requests.RemoveAt(_requests.Count - 1);
+                    _emergencyRequests.Add(request);
                 }
-
+                else
+                {
+                    _normalRequests.Add(request);
+                }
                 UpdateRequestCount();
             });
         }
 
         private void UpdateRequestCount()
         {
-            RequestCountText.Text = $" ({_requests.Count})";
+            Dispatcher.Invoke(() =>
+            {
+                NormalCountText.Text = $" ({_normalRequests.Count})";
+                EmergencyCountText.Text = $" ({_emergencyRequests.Count})";
+            });
         }
 
-        private void CopyCode_Click(object sender, RoutedEventArgs e)
+        private void StackPanel_MouseLeftButtonDown(object sender, System.Windows.Input.MouseButtonEventArgs e)
         {
-            if (sender is Button button && button.Tag is string code)
+            if (sender is Border border && border.DataContext is ScanerServer.Models.HttpRequest request)
             {
-                // 禁用按钮防止重复点击
-                button.IsEnabled = false;
+                string code = request.Body;
                 
                 try
                 {
@@ -373,19 +405,14 @@ namespace ScanerServer
                     
                     if (copySuccess)
                     {
-                        // 获取请求对象
-                        var dataContext = button.DataContext as ScanerServer.Models.HttpRequest;
-                        if (dataContext != null)
-                        {
-                            // 标记为已复制
-                            _copiedCodes[dataContext.Id] = true;
+                        // 标记为已复制
+                        _copiedCodes[request.Id] = true;
 
-                            // 更新数据模型中的IsCopied状态，触发UI更新
-                            dataContext.IsCopied = true;
+                        // 更新数据模型中的IsCopied状态，触发UI更新
+                        request.IsCopied = true;
 
-                            // 更新数据库中的复制状态
-                            UpdateCopiedStatusInDatabase(dataContext.Id);
-                        }
+                        // 更新数据库中的复制状态
+                        UpdateCopiedStatusInDatabase(request.Id);
 
                         // 显示简短的成功提示
                         var statusText = StatusText.Text;
@@ -432,11 +459,6 @@ namespace ScanerServer
                         MessageBoxButton.OK,
                         MessageBoxImage.Error
                     );
-                }
-                finally
-                {
-                    // 重新启用按钮
-                    button.IsEnabled = true;
                 }
             }
         }

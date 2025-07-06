@@ -43,8 +43,9 @@ namespace ScanerServer.Middleware
                 request.Body.Position = 0;
             }
 
-            // 尝试解析JSON并提取code字段
+            // 尝试解析JSON并提取code和type字段
             string displayBody = body;
+            string type = string.Empty;
             try
             {
                 if (!string.IsNullOrEmpty(body))
@@ -53,6 +54,10 @@ namespace ScanerServer.Middleware
                     if (jsonObj.ContainsKey("code"))
                     {
                         displayBody = jsonObj["code"]?.ToString() ?? body;
+                    }
+                    if (jsonObj.ContainsKey("type"))
+                    {
+                        type = jsonObj["type"]?.ToString() ?? string.Empty;
                     }
                 }
             }
@@ -75,6 +80,7 @@ namespace ScanerServer.Middleware
                 Timestamp = DateTime.Now,
                 ClientIp = context.Connection.RemoteIpAddress?.ToString() ?? "Unknown",
                 IsCopied = false,
+                Type = type,
             };
 
             // 保存到数据库

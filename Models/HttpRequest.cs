@@ -12,6 +12,7 @@ namespace ScanerServer.Models
         private DateTime _timestamp;
         private string _clientIp = string.Empty;
         private bool _isCopied;
+        private string _type = string.Empty;
 
         public int Id
         {
@@ -90,6 +91,16 @@ namespace ScanerServer.Models
             {
                 _isCopied = value;
                 OnPropertyChanged(nameof(IsCopied));
+            }
+        }
+
+        public string Type
+        {
+            get => _type;
+            set
+            {
+                _type = value;
+                OnPropertyChanged(nameof(Type));
             }
         }
 

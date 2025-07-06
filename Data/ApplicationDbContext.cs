@@ -24,6 +24,7 @@ namespace ScanerServer.Data
                 entity.Property(e => e.ClientIp).HasMaxLength(45);
                 entity.Property(e => e.Timestamp).IsRequired();
                 entity.Property(e => e.IsCopied).IsRequired().HasDefaultValue(false);
+                entity.Property(e => e.Type).HasMaxLength(100);
             });
         }
     }
